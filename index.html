@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>پورتفوی هوشمند حامی v12</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#020617">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        :root, [data-theme="dark"] {
+            --bg: #020617; --card: #0f172a; --card-hover: #1e293b; --border: #1e293b; --primary: #22c55e; --danger: #ef4444; --accent: #3b82f6; --text: #f8fafc; --muted: #94a3b8; --tg: #0088cc; --drive: #4285F4; --overlay: rgba(0,0,0,0.6);
+        }
+        [data-theme="light"] {
+            --bg: #f1f5f9; --card: #fff; --card-hover: #f8fafc; --border: #e2e8f0; --text: #0f172a; --muted: #64748b; --overlay: rgba(0,0,0,0.4);
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Vazirmatn', Tahoma, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 90px; line-height: 1.6; overflow-x: hidden; transition: background 0.3s, color 0.3s; }
+        
+        header { background: var(--card); padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1001; transition: background 0.3s; }
+        .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--card); border-radius: 16px; padding: 15px; margin-bottom: 15px; border: 1px solid var(--border); position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+        .card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--overlay); }
+        
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .theme-btn { cursor: pointer; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-hover); color: var(--text); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .theme-btn:hover { background: var(--accent); color: #fff; }
+        .priv-toggle { cursor: pointer; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-hover); color: var(--text); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .priv-toggle:hover { background: var(--accent); color: #fff; }
+        .priv-blur { filter: blur(14px); transition: 0.4s; pointer-events: none; }
+        .alert-box { background: #450a0a; border: 1px solid var(--danger); padding: 12px; border-radius: 12px; font-size: 11px; margin-bottom: 15px; display: none; color: #fca5a5; text-align: center; font-weight: bold; cursor: pointer; }
+        .alert-box.warn { background: #422006; border-color: #eab308; color: #fde047; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: var(--card); padding: 14px; border-radius: 14px; border-right: 4px solid var(--primary); text-align: center; box-shadow: 0 4px 6px var(--overlay); transition: transform 0.2s; }
+        .stat-card:hover { transform: scale(1.02); }
+        .stat-card.blue { border-right-color: var(--accent); }
+        .reminder-tag { font-size: 10px; background: var(--card-hover); padding: 4px 10px; border-radius: 20px; color: var(--accent); margin-top: 8px; display: inline-block; border: 1px solid var(--accent); }
+        .summary-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; font-size: 11px; color: var(--muted); }
+        .summary-row span { background: var(--card-hover); padding: 6px 10px; border-radius: 8px; }
+
+        .chart-container { height: 260px; position: relative; margin-top: 20px; display: flex; align-items: flex-end; justify-content: space-around; padding-bottom: 55px; border-bottom: 2px solid var(--border); }
+        .chart-empty { display: flex; align-items: center; justify-content: center; height: 180px; color: var(--muted); font-size: 13px; text-align: center; padding: 20px; }
+        .bar-wrapper { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; position: relative; min-width: 0; animation: barIn 0.5s ease backwards; }
+        @keyframes barIn { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+        .bar { width: 50%; max-width: 18px; min-height: 4px; transition: 0.5s cubic-bezier(0.17, 0.67, 0.83, 0.67); position: absolute; z-index: 2; border-radius: 4px; }
+        .zero-line { position: absolute; width: 100%; height: 2px; background: var(--muted); top: 50%; z-index: 1; opacity: 0.5; }
+        .bar-val { font-size: 10px; position: absolute; width: 100%; text-align: center; font-weight: bold; z-index: 5; }
+        .bar-date { font-size: 9px; color: var(--muted); position: absolute; bottom: -48px; transform: rotate(-40deg); transform-origin: top center; white-space: nowrap; left: 50%; margin-left: -20px; }
+
+        .line-chart-wrap { height: 180px; position: relative; margin-top: 15px; padding: 10px 0; }
+        .line-chart-svg { width: 100%; height: 100%; }
+        .line-chart-path { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: stroke-dashoffset 0.8s ease; }
+
+        .tabs { display: flex; flex-wrap: wrap; background: var(--card-hover); border-radius: 10px; padding: 4px; margin-bottom: 15px; gap: 4px; }
+        .tab { flex: 1; min-width: 60px; text-align: center; padding: 8px 4px; cursor: pointer; border-radius: 8px; font-size: 10px; color: var(--muted); transition: 0.3s; }
+        .tab:hover { color: var(--text); }
+        .tab.active { background: var(--primary); color: #000; font-weight: bold; }
+
+        #analysis-box { margin-top: 60px; padding: 10px; border-top: 1px dashed var(--border); font-size: 12px; }
+        .log-item { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding: 6px 0; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); }
+        input.input-err { border-color: var(--danger); }
+        button { background: var(--primary); color: #000; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; }
+        button:hover { filter: brightness(1.1); }
+        button:active { transform: scale(0.98); }
+        button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .btn-tg { background: var(--tg); color: white; }
+        .btn-drive { background: var(--drive); color: white; }
+        button.secondary { background: var(--card-hover); color: var(--text); border: 1px solid var(--border); }
+        button.danger-action { background: #7f1d1d; color: white; }
+
+        nav { position: fixed; bottom: 0; width: 100%; background: var(--card); display: flex; justify-content: space-around; padding: 12px 0; border-top: 1px solid var(--border); z-index: 1000; box-shadow: 0 -2px 10px var(--overlay); transition: background 0.3s; }
+        .nav-item { cursor: pointer; opacity: 0.5; font-size: 22px; transition: 0.3s; padding: 4px; border-radius: 8px; }
+        .nav-item:hover { opacity: 0.8; }
+        .nav-item.on { opacity: 1; color: var(--primary); transform: translateY(-3px); }
+        
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        td, th { padding: 12px 8px; text-align: center; border-bottom: 1px solid var(--border); }
+        th { font-weight: 600; color: var(--muted); }
+
+        .date-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+        .date-row input[type="text"] { flex: 1; min-width: 120px; }
+        .date-row input[type="date"] { flex: 1; min-width: 140px; }
+        .btn-today { flex: 0 0 auto; padding: 12px 14px !important; width: auto !important; }
+        .cfg-err, .field-err { font-size: 11px; color: var(--danger); margin-top: -4px; margin-bottom: 4px; display: none; }
+        .cfg-err.show, .field-err.show { display: block; }
+
+        .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+        .filter-row input { margin: 0; flex: 1; min-width: 100px; }
+        .filter-row label { font-size: 12px; color: var(--muted); }
+
+        .modal-backdrop { position: fixed; inset: 0; background: var(--overlay); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.2s; }
+        .modal-backdrop.show { display: flex; }
+        .modal { background: var(--card); border-radius: 16px; padding: 20px; max-width: 360px; width: 100%; border: 1px solid var(--border); animation: fadeIn 0.3s ease; }
+        .modal h4 { margin: 0 0 12px 0; }
+        .modal input { margin-bottom: 12px; }
+        .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+        .modal-actions button { flex: 1; }
+
+        .backup-info { font-size: 11px; color: var(--muted); margin-top: 8px; }
+        .skeleton { background: linear-gradient(90deg, var(--card-hover) 25%, var(--border) 50%, var(--card-hover) 75%); background-size: 200% 100%; animation: skeleton 1.2s ease infinite; border-radius: 8px; height: 20px; }
+        @keyframes skeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .chart-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+        .chart-tabs .tab { min-width: 70px; }
+        @media print {
+            nav, .theme-btn, .priv-toggle, button, .filter-row, .modal-backdrop { display: none !important; }
+            .card { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <span>💎 پورتفوی هوشمند v12</span>
+    <div class="header-actions">
+        <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" aria-label="تغییر تم">🌙</button>
+        <button class="priv-toggle" onclick="togglePrivacy()" aria-label="نمایش/مخفی مبالغ">👁️</button>
+    </div>
+</header>
+
+<div class="container">
+    <div id="backup-alert" class="alert-box" onclick="nav('pg-config', document.querySelectorAll('.nav-item')[2])">
+        ⚠️ بیش از ۳ روز از آخرین بکاپ گذشته. برای امنیت داده‌ها پشتیبان بگیرید.
+    </div>
+    <div id="backup-ok" class="backup-info" style="display:none;"></div>
+    <div id="record-limit-alert" class="alert-box warn" style="display:none;"></div>
+
+    <div id="pg-dash" class="page active">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <small style="color:var(--muted)">دارایی کل</small>
+                <div id="total-val" class="priv-blur" style="font-weight:bold; font-size: 1.1rem; margin-top:4px">۰</div>
+            </div>
+            <div class="stat-card blue">
+                <small style="color:var(--muted)">سود حامی</small>
+                <div id="hami-val" class="priv-blur" style="font-weight:bold; color:var(--accent); margin-top:4px">۰</div>
+                <div id="hami-rem" class="reminder-tag"></div>
+            </div>
+        </div>
+        <div id="summary-row" class="summary-row"></div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="changeTF('day', this)">۵ روز اخیر</div>
+            <div class="tab" onclick="changeTF('week', this)">هفتگی</div>
+            <div class="tab" onclick="changeTF('month', this)">ماهانه</div>
+            <div class="tab" onclick="changeTF('year', this)">سالانه</div>
+        </div>
+
+        <div class="card" style="overflow:visible;">
+            <div class="chart-tabs">
+                <div class="tab active" id="tab-bar" onclick="switchChartType('bar', this)">نمودار اختلاف</div>
+                <div class="tab" id="tab-line" onclick="switchChartType('line', this)">روند دارایی</div>
+            </div>
+            <div class="chart-container" id="main-chart">
+                <div class="zero-line"></div>
+            </div>
+            <div class="line-chart-wrap" id="line-chart-wrap" style="display:none;">
+                <svg class="line-chart-svg" id="line-chart-svg" viewBox="0 0 400 160" preserveAspectRatio="none"></svg>
+            </div>
+            <div id="analysis-box"></div>
+        </div>
+    </div>
+
+    <div id="pg-entry" class="page">
+        <div class="card">
+            <h3 style="margin-top:0">📝 ثبت وضعیت جدید</h3>
+            <div class="date-row">
+                <input type="text" id="in-date" placeholder="تاریخ شمسی (۱۴۰۴/۱۱/۰۹)" aria-label="تاریخ شمسی" oninput="validateDateLive(this)">
+                <input type="date" id="in-date-picker" title="انتخاب تاریخ میلادی" aria-label="انتخاب تاریخ" onchange="onDatePickerChange()">
+                <button class="btn-today" onclick="setToday()">📅 امروز</button>
+            </div>
+            <p id="in-date-err" class="field-err"></p>
+            <input type="number" id="in-total" placeholder="دارایی کل" aria-label="دارایی کل" min="0" oninput="validateNumberLive(this, 0)">
+            <input type="number" id="in-idle" placeholder="مبلغ در طرح حامی" aria-label="مبلغ حامی" min="0">
+            <p style="font-size:11px; color:var(--muted)">واحد نمایش: <select id="currency-unit" onchange="saveCurrencyAndRender()" style="width:auto; display:inline-block; padding:4px 8px;">
+                <option value="rial">ریال</option>
+                <option value="toman">تومان</option>
+                <option value="million">میلیون تومان</option>
+            </select></p>
+            <button onclick="addEntry()">ذخیره</button>
+        </div>
+
+        <div class="card">
+            <div class="filter-row">
+                <input type="text" id="filter-search" placeholder="جستجو در تاریخ یا مبلغ..." aria-label="جستجو" oninput="applyFilter()">
+                <label>از تاریخ: <input type="text" id="filter-date-from" placeholder="1404/01/01" oninput="applyFilter()" style="width:100px;"></label>
+                <label>تا تاریخ: <input type="text" id="filter-date-to" placeholder="1404/12/29" oninput="applyFilter()" style="width:100px;"></label>
+            </div>
+            <div style="overflow-x:auto;">
+                <table id="data-table">
+                    <thead><tr><th>تاریخ</th><th>کل</th><th>حامی</th><th>عملیات</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="pg-config" class="page">
+        <div class="card">
+            <h3>⚙️ تنظیمات حامی</h3>
+            <p id="cfg-err" class="cfg-err"></p>
+            <input type="number" id="cfg-payday" placeholder="روز واریز سود (۱ تا ۳۱)" min="1" max="31" aria-label="روز واریز" oninput="validatePaydayLive(this)">
+            <p id="cfg-payday-err" class="field-err"></p>
+            <input type="number" id="cfg-rate" placeholder="نرخ سود سالانه (٪)" min="0" max="100" step="0.1" aria-label="نرخ سود" oninput="validateRateLive(this)">
+            <p id="cfg-rate-err" class="field-err"></p>
+            <select id="cfg-type" aria-label="نوع محاسبه">
+                <option value="365">محاسبه سالانه</option>
+                <option value="30">محاسبه ماهانه</option>
+            </select>
+            <button onclick="saveCfg()">بروزرسانی تنظیمات</button>
+        </div>
+
+        <div class="card">
+            <h3>☁️ بکاپ و بازیابی</h3>
+            <p class="backup-info" id="last-backup-text">آخرین بکاپ: —</p>
+            <p style="font-size:11px; color:var(--muted)">رمز اختیاری برای بکاپ (خالی = بدون رمز):</p>
+            <input type="password" id="backup-password" placeholder="رمز بکاپ (اختیاری)" aria-label="رمز بکاپ">
+            <button class="btn-tg" onclick="syncTelegram()">📤 ارسال بکاپ به تلگرام</button>
+            <button class="btn-drive" onclick="exportData()">💾 دانلود فایل JSON</button>
+            <hr style="border-color:var(--border); margin:15px 0">
+            <button class="secondary" onclick="importFromText()">📥 بازیابی از متن (تلگرام)</button>
+            <input type="file" id="import-file" style="display:none" accept=".json,application/json" onchange="importData(this)">
+            <button class="secondary" onclick="document.getElementById('import-file').click()">📂 بارگذاری فایل بکاپ</button>
+            <button class="secondary" onclick="window.print()">🖨️ چاپ گزارش</button>
+            <button class="danger-action" onclick="openClearAllModal()">🗑️ حذف تمام اطلاعات</button>
+        </div>
+
+        <div class="card">
+            <h3>🔔 یادآوری</h3>
+            <p style="font-size:11px; color:var(--muted)">با فعال‌سازی، هر هفته یادآور بکاپ دریافت می‌کنید (نیاز به اجازه اعلان).</p>
+            <button class="secondary" id="notif-btn" onclick="requestNotificationPermission()">فعال‌سازی یادآور بکاپ</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-backdrop" class="modal-backdrop" onclick="if(event.target===this) closeModal()">
+    <div class="modal" role="dialog" aria-labelledby="modal-title">
+        <h4 id="modal-title">تأیید حذف</h4>
+        <p id="modal-body"></p>
+        <input type="text" id="modal-confirm-input" placeholder="برای تأیید تایپ کنید" aria-label="تایید با تایپ">
+        <div class="modal-actions">
+            <button class="secondary" onclick="closeModal()">انصراف</button>
+            <button class="danger-action" id="modal-confirm-btn" disabled>حذف</button>
+        </div>
+    </div>
+</div>
+
+<nav>
+    <div class="nav-item on" onclick="nav('pg-dash', this)">📊</div>
+    <div class="nav-item" onclick="nav('pg-entry', this)">📝</div>
+    <div class="nav-item" onclick="nav('pg-config', this)">⚙️</div>
+</nav>
+
+<script>
+    const DB_KEY = 'port_v12_pro';
+    const DB_VERSION = 1;
+    const MAX_RECORDS = 500;
+    const defaultDb = () => ({ version: DB_VERSION, assets: [], config: { rate: 25, type: "365", payday: 31 }, lastBackup: "" });
+    let db = (function() {
+        let raw = localStorage.getItem(DB_KEY) || localStorage.getItem('port_v11_pro');
+        if (!raw) return defaultDb();
+        let o = JSON.parse(raw);
+        if (!o.version) { o.version = DB_VERSION; o.assets = o.assets || []; o.config = o.config || {}; o.lastBackup = o.lastBackup || ""; }
+        return o;
+    })();
+    let isPrivate = false;
+    let currentTF = 'day';
+    let chartType = 'bar';
+    let currencyUnit = localStorage.getItem(DB_KEY + '_currency') || 'rial';
+    let theme = localStorage.getItem(DB_KEY + '_theme') || 'dark';
+
+    function applyTheme() {
+        document.documentElement.setAttribute('data-theme', theme);
+        const btn = document.getElementById('theme-btn');
+        if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+        const m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.content = theme === 'light' ? '#f1f5f9' : '#020617';
+    }
+    function toggleTheme() {
+        theme = theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(DB_KEY + '_currency', currencyUnit);
+        localStorage.setItem(DB_KEY + '_theme', theme);
+        applyTheme();
+    }
+
+    function formatMoney(n) {
+        n = Number(n);
+        if (currencyUnit === 'toman') n = Math.round(n / 10);
+        else if (currencyUnit === 'million') n = (n / 1e7).toFixed(2);
+        return Number(n).toLocaleString('fa-IR') + (currencyUnit === 'rial' ? ' ریال' : currencyUnit === 'toman' ? ' تومان' : ' میلیون تومان');
+    }
+    function toDisplayValue(n) {
+        n = Number(n);
+        if (currencyUnit === 'toman') return Math.round(n / 10);
+        if (currencyUnit === 'million') return (n / 1e7).toFixed(2);
+        return n;
+    }
+
+    // ---------- تاریخ شمسی (جلالی) ----------
+    function gregorianToJalali(gy, gm, gd) {
+        const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+        let jy = (gy <= 1600) ? 0 : 979;
+        gy -= (gy <= 1600) ? 621 : 1600;
+        let gy2 = (gm > 2) ? (gy + 1) : gy;
+        let days = (365 * gy) + (parseInt((gy2 + 3) / 4)) - (parseInt((gy + 99) / 100)) + (parseInt((gy + 399) / 400)) - 80 + gd + g_d_m[gm - 1];
+        jy += 33 * (parseInt(days / 12053));
+        days %= 12053;
+        jy += 4 * (parseInt(days / 1461));
+        days %= 1461;
+        jy += parseInt((days - 1) / 365);
+        if (days > 365) days = (days - 1) % 365;
+        let jm = (days < 186) ? 1 + parseInt(days / 31) : 7 + parseInt((days - 186) / 30);
+        let jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+        if (jd === 0) { jd = 30; jm--; }
+        return [jy, jm, jd];
+    }
+    function formatJalali(y, m, d) {
+        return y + '/' + String(m).padStart(2, '0') + '/' + String(d).padStart(2, '0');
+    }
+    function setToday() {
+        const now = new Date();
+        const [jy, jm, jd] = gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        document.getElementById('in-date').value = formatJalali(jy, jm, jd);
+        document.getElementById('in-date-picker').value = now.toISOString().slice(0, 10);
+    }
+    function onDatePickerChange() {
+        const v = document.getElementById('in-date-picker').value;
+        if (!v) return;
+        const [y, m, d] = v.split('-').map(Number);
+        const [jy, jm, jd] = gregorianToJalali(y, m, d);
+        document.getElementById('in-date').value = formatJalali(jy, jm, jd);
+        validateDateLive(document.getElementById('in-date'));
+    }
+
+    function validateDateLive(el) {
+        const v = el.value.trim();
+        const err = document.getElementById('in-date-err');
+        if (!v) { err.classList.remove('show'); err.textContent = ''; el.classList.remove('input-err'); return; }
+        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(v)) { err.textContent = 'فرمت: 1404/11/09'; err.classList.add('show'); el.classList.add('input-err'); return; }
+        err.classList.remove('show'); err.textContent = ''; el.classList.remove('input-err');
+    }
+    function validatePaydayLive(el) {
+        const v = +el.value, err = document.getElementById('cfg-payday-err');
+        if (isNaN(v) || v < 1 || v > 31) { err.textContent = 'بین ۱ تا ۳۱'; err.classList.add('show'); return; }
+        err.classList.remove('show');
+    }
+    function validateRateLive(el) {
+        const v = +el.value, err = document.getElementById('cfg-rate-err');
+        if (isNaN(v) || v < 0 || v > 100) { err.textContent = 'بین ۰ تا ۱۰۰'; err.classList.add('show'); return; }
+        err.classList.remove('show');
+    }
+    function validateNumberLive(el, min) {
+        const v = +el.value;
+        if (el.value !== '' && (isNaN(v) || v < min)) el.classList.add('input-err'); else el.classList.remove('input-err');
+    }
+
+    // Privacy Toggle
+    function togglePrivacy() {
+        isPrivate = !isPrivate;
+        document.querySelectorAll('.priv-blur').forEach(el => el.style.filter = isPrivate ? 'blur(18px)' : 'none');
+        document.querySelector('.priv-toggle').innerText = isPrivate ? '🙈' : '👁️';
+    }
+
+    // Navigation
+    function nav(id, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('on'));
+        el.classList.add('on');
+        render();
+    }
+
+    // Core Functions
+    function addEntry() {
+        const d = document.getElementById('in-date').value.trim();
+        const t = +document.getElementById('in-total').value;
+        const i = +document.getElementById('in-idle').value || 0;
+        if (!d || !t) return alert("لطفاً تاریخ و مبلغ کل را وارد کنید.");
+        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(d)) return alert("فرمت تاریخ باید شمسی باشد، مثلاً 1404/11/09");
+        if (db.assets.length >= MAX_RECORDS) {
+            const idx = db.assets.findIndex(a => a.date === d);
+            if (idx === -1) { alert('حداکثر ' + MAX_RECORDS + ' رکورد. قدیمی‌ترین را حذف یا بکاپ بگیرید.'); return; }
+        }
+        const idx = db.assets.findIndex(a => a.date === d);
+        if (idx > -1) db.assets[idx] = { date: d, total: t, idle: i };
+        else db.assets.push({ date: d, total: t, idle: i });
+        db.assets.sort((a, b) => a.date.localeCompare(b.date));
+        saveAndReload();
+    }
+    function saveCurrencyAndRender() {
+        currencyUnit = document.getElementById('currency-unit').value;
+        localStorage.setItem(DB_KEY + '_currency', currencyUnit);
+        render();
+    }
+
+    function saveCfg() {
+        const errEl = document.getElementById('cfg-err');
+        errEl.classList.remove('show');
+        errEl.textContent = '';
+        const payday = +document.getElementById('cfg-payday').value;
+        const rate = +document.getElementById('cfg-rate').value;
+        const type = document.getElementById('cfg-type').value;
+        const errs = [];
+        if (isNaN(payday) || payday < 1 || payday > 31) errs.push('روز واریز باید بین ۱ تا ۳۱ باشد.');
+        if (isNaN(rate) || rate < 0 || rate > 100) errs.push('نرخ سود باید بین ۰ تا ۱۰۰ باشد.');
+        if (type !== '365' && type !== '30') errs.push('نوع محاسبه نامعتبر است.');
+        if (errs.length) {
+            errEl.textContent = errs.join(' ');
+            errEl.classList.add('show');
+            return;
+        }
+        db.config.rate = rate;
+        db.config.type = type;
+        db.config.payday = Math.floor(payday);
+        saveAndReload();
+        alert("تنظیمات ذخیره شد.");
+    }
+
+    function xorStr(str, key) {
+        let out = '';
+        for (let i = 0; i < str.length; i++) out += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+        return out;
+    }
+    function encryptBackup(jsonStr, password) {
+        return btoa(unescape(encodeURIComponent('ENCv1:' + xorStr(jsonStr, password))));
+    }
+    function decryptBackup(encData, password) {
+        const raw = decodeURIComponent(escape(atob(encData)));
+        if (!raw.startsWith('ENCv1:')) return raw;
+        return xorStr(raw.slice(6), password);
+    }
+
+    const TG_URL_MAX = 1800;
+    function syncTelegram() {
+        db.lastBackup = new Date().toISOString();
+        saveAndReload();
+        const pwd = (document.getElementById('backup-password') || {}).value;
+        const jsonStr = JSON.stringify(db);
+        const dataStr = pwd ? encryptBackup(jsonStr, pwd) : btoa(unescape(encodeURIComponent(jsonStr)));
+        const header = "💎 بکاپ پورتفوی حامی\n📅 " + new Date().toLocaleDateString('fa-IR') + (pwd ? "\n🔒 رمزدار\n" : "\n") + "\n🔐 کد بازیابی (کامل کپی شود):\n\n";
+        const fullText = header + dataStr;
+        if (fullText.length > TG_URL_MAX) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(fullText).then(function() {
+                    alert("حجم داده زیاد است؛ متن بکاپ در کلیپبورد کپی شد. در تلگرام paste کنید.");
+                }).catch(function() { fallbackCopy(fullText); });
+            } else fallbackCopy(fullText);
+        } else window.open('https://t.me/share/url?url=' + encodeURIComponent(fullText), '_blank');
+        render();
+    }
+    function fallbackCopy(str) {
+        const ta = document.createElement('textarea');
+        ta.value = str;
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); alert("متن بکاپ کپی شد. در تلگرام paste کنید."); } catch (e) { alert("لطفاً دستی کپی کنید."); }
+        document.body.removeChild(ta);
+    }
+
+    function importFromText() {
+        const code = prompt("کد بازیابی (یا کد رمزدار) را وارد کنید:");
+        if (!code) return;
+        try {
+            const raw = atob(code.trim());
+            let decoded;
+            if (raw.substring(0, 6) === 'ENCv1:') {
+                const pwd = prompt("رمز بکاپ را وارد کنید:");
+                if (!pwd) return;
+                decoded = decryptBackup(code.trim(), pwd);
+            } else decoded = decodeURIComponent(escape(raw));
+            db = JSON.parse(decoded);
+            if (!db.assets) db.assets = [];
+            if (!db.config) db.config = { rate: 25, type: "365", payday: 31 };
+            saveAndReload();
+            alert("داده‌ها با موفقیت بازیابی شد.");
+        } catch (e) { alert("کد نامعتبر یا رمز اشتباه است."); }
+    }
+
+    function exportData() {
+        db.lastBackup = new Date().toISOString();
+        saveAndReload();
+        const blob = new Blob([JSON.stringify(db)], {type: "application/json"});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Hami_Backup_${new Date().toLocaleDateString('fa-IR')}.json`;
+        a.click();
+        render();
+    }
+
+    function importData(input) {
+        const r = new FileReader();
+        r.onload = (e) => { 
+            try {
+                db = JSON.parse(e.target.result); 
+                saveAndReload(); 
+                alert("فایل با موفقیت بارگذاری شد.");
+            } catch(ex) { alert("فایل نامعتبر است."); }
+        };
+        r.readAsText(input.files[0]);
+    }
+
+    function saveAndReload() {
+        db.version = DB_VERSION;
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+        render();
+    }
+
+    let modalResolve = null;
+    function openModal(title, body, confirmWord, onConfirm) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-body').textContent = body;
+        document.getElementById('modal-confirm-input').value = '';
+        document.getElementById('modal-confirm-input').placeholder = 'برای تأیید «' + confirmWord + '» را تایپ کنید';
+        document.getElementById('modal-confirm-btn').disabled = true;
+        const backdrop = document.getElementById('modal-backdrop');
+        const inp = document.getElementById('modal-confirm-input');
+        const btn = document.getElementById('modal-confirm-btn');
+        function check() {
+            btn.disabled = inp.value.trim() !== confirmWord;
+        }
+        inp.oninput = check;
+        btn.onclick = function() {
+            if (inp.value.trim() !== confirmWord) return;
+            onConfirm();
+            closeModal();
+        };
+        backdrop.classList.add('show');
+        inp.focus();
+    }
+    function closeModal() {
+        document.getElementById('modal-backdrop').classList.remove('show');
+    }
+    function openDeleteModal(idx) {
+        openModal('حذف رکورد', 'آیا از حذف این رکورد اطمینان دارید؟', 'حذف', function() {
+            db.assets.splice(idx, 1);
+            saveAndReload();
+        });
+    }
+    function openClearAllModal() {
+        openModal('حذف تمام داده‌ها', 'تمام تاریخچه و تنظیمات حذف می‌شود. این عمل غیرقابل بازگشت است.', 'حذف همه', function() {
+            localStorage.removeItem(DB_KEY);
+            localStorage.removeItem(DB_KEY + '_theme');
+            localStorage.removeItem(DB_KEY + '_currency');
+            location.reload();
+        });
+    }
+
+    function getFilteredAssets() {
+        let list = db.assets.slice();
+        const q = (document.getElementById('filter-search') || {}).value.trim().toLowerCase();
+        const from = (document.getElementById('filter-date-from') || {}).value.trim();
+        const to = (document.getElementById('filter-date-to') || {}).value.trim();
+        if (q) list = list.filter(a => (a.date + a.total + a.idle).toString().includes(q));
+        if (from) list = list.filter(a => a.date >= from);
+        if (to) list = list.filter(a => a.date <= to);
+        return list;
+    }
+    function applyFilter() {
+        const list = getFilteredAssets();
+        const tbody = document.querySelector("#data-table tbody");
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        list.forEach((a, ii) => {
+            const i = db.assets.findIndex(x => x === a);
+            tbody.innerHTML += `<tr><td>${escapeHtml(a.date)}</td><td>${formatMoney(a.total)}</td><td>${formatMoney(a.idle)}</td>
+            <td><button style="width:auto;padding:4px 8px;background:#eab308;color:black;border-radius:6px" onclick="editEntry(${i})">✎</button>
+            <button style="width:auto;padding:4px 8px;background:red;color:white;border-radius:6px" onclick="openDeleteModal(${i})">✕</button></td></tr>`;
+        });
+    }
+
+    // Rendering Logic
+    function render() {
+        const lastB = db.lastBackup ? new Date(db.lastBackup) : null;
+        const diffDays = lastB ? Math.floor((new Date() - lastB) / 86400000) : 999;
+        document.getElementById('backup-alert').style.display = (diffDays > 3 && db.assets.length > 0) ? 'block' : 'none';
+        document.getElementById('backup-ok').style.display = (lastB && db.assets.length > 0 && diffDays <= 3) ? 'block' : 'none';
+        if (lastB) {
+            document.getElementById('last-backup-text').textContent = 'آخرین بکاپ: ' + new Date(lastB).toLocaleDateString('fa-IR');
+            document.getElementById('backup-ok').textContent = '✓ آخرین بکاپ: ' + new Date(lastB).toLocaleDateString('fa-IR');
+        }
+        if (db.assets.length >= MAX_RECORDS) {
+            const el = document.getElementById('record-limit-alert');
+            el.style.display = 'block';
+            el.textContent = 'تعداد رکوردها به ' + MAX_RECORDS + ' رسیده. برای عملکرد بهتر قدیمی‌ترین‌ها را بکاپ بگیرید یا حذف کنید.';
+            el.onclick = () => nav('pg-config', document.querySelectorAll('.nav-item')[2]);
+        } else document.getElementById('record-limit-alert').style.display = 'none';
+
+        const filtered = getFilteredAssets();
+        const tbody = document.querySelector("#data-table tbody");
+        if (tbody) {
+            tbody.innerHTML = "";
+            filtered.forEach(a => {
+                const i = db.assets.findIndex(x => x.date === a.date && x.total === a.total);
+                tbody.innerHTML += `<tr><td>${escapeHtml(a.date)}</td><td>${formatMoney(a.total)}</td><td>${formatMoney(a.idle)}</td>
+                <td><button style="width:auto;padding:4px 8px;background:#eab308;color:black;border-radius:6px" onclick="editEntry(${i})">✎</button>
+                <button style="width:auto;padding:4px 8px;background:red;color:white;border-radius:6px" onclick="openDeleteModal(${i})">✕</button></td></tr>`;
+            });
+        }
+
+        let hamiSoodTotal = 0;
+        const dailyRate = (db.config.rate / 100) / parseInt(db.config.type);
+        db.assets.forEach(a => { hamiSoodTotal += (a.idle * dailyRate); });
+
+        if (db.assets.length > 0) {
+            document.getElementById('total-val').innerText = formatMoney(db.assets[db.assets.length - 1].total);
+            document.getElementById('hami-val').innerText = formatMoney(Math.floor(hamiSoodTotal));
+            const now = new Date();
+            const [, jm, jd] = gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+            let daysLeft = db.config.payday - jd;
+            if (daysLeft < 0) daysLeft += 30;
+            document.getElementById('hami-rem').innerText = daysLeft === 0 ? "امروز: روز واریز سود" : daysLeft + " روز تا سود حامی";
+
+            const totals = db.assets.map(a => a.total);
+            const minT = Math.min(...totals), maxT = Math.max(...totals), avgT = totals.reduce((s, x) => s + x, 0) / totals.length;
+            const first = db.assets[0].total, last = db.assets[db.assets.length - 1].total;
+            const growthPc = first ? (((last - first) / first) * 100).toFixed(1) : '۰';
+            document.getElementById('summary-row').innerHTML = '<span>کمترین: ' + formatMoney(minT) + '</span><span>بیشترین: ' + formatMoney(maxT) + '</span><span>میانگین: ' + formatMoney(avgT) + '</span><span>رشد دوره: ' + growthPc + '%</span>';
+        } else document.getElementById('summary-row').innerHTML = '';
+
+        renderChart();
+        if (chartType === 'line') renderLineChart();
+    }
+
+    function parseJalali(dateStr) {
+        const p = dateStr.split('/').map(Number);
+        return { y: p[0], m: p[1], d: p[2] };
+    }
+    function jalaliDayOfYear(y, m, d) {
+        const monthDays = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+        const jalaliLeap = ((((y - 474) % 2820) + 474) % 4) === 1;
+        if (jalaliLeap) monthDays[11] = 30;
+        let day = d;
+        for (let i = 0; i < m - 1; i++) day += monthDays[i];
+        return day;
+    }
+    function getGroupKey(dateStr, tf) {
+        const { y, m, d } = parseJalali(dateStr);
+        if (tf === 'year') return String(y);
+        if (tf === 'month') return y + '/' + String(m).padStart(2, '0');
+        if (tf === 'week') {
+            const doy = jalaliDayOfYear(y, m, d);
+            const weekNum = Math.ceil(doy / 7);
+            return y + '/هفته‌' + weekNum;
+        }
+        return dateStr;
+    }
+    function groupData(assets, tf) {
+        const g = {};
+        assets.forEach(a => {
+            const k = getGroupKey(a.date, tf);
+            if (!g[k]) g[k] = [];
+            g[k].push(a);
+        });
+        const keys = Object.keys(g).sort();
+        const ordered = {};
+        keys.forEach(k => { ordered[k] = g[k]; });
+        return ordered;
+    }
+
+    function renderChart() {
+        const chart = document.getElementById('main-chart');
+        const info = document.getElementById('analysis-box');
+        chart.querySelectorAll('.bar-wrapper').forEach(b => b.remove());
+        chart.querySelectorAll('.chart-empty').forEach(e => e.remove());
+        info.innerHTML = "<strong>📊 تحلیل وضعیت:</strong><br>";
+
+        let pts = [];
+        if (db.assets.length < 2) {
+            const empty = document.createElement('div');
+            empty.className = 'chart-empty';
+            empty.textContent = 'برای نمایش نمودار حداقل ۲ رکورد با تاریخ معتبر لازم است.';
+            chart.appendChild(empty);
+            return;
+        }
+
+        if (currentTF === 'day') {
+            const list = db.assets.slice(-7);
+            for (let i = 1; i < list.length; i++) pts.push({ ...calcDiff(list[i], list[i - 1]), label: list[i].date.substring(5) });
+        } else {
+            const groups = groupData(db.assets, currentTF);
+            const keys = Object.keys(groups);
+            keys.forEach((k, i) => {
+                const cur = groups[k][groups[k].length - 1];
+                const prev = i > 0 ? groups[keys[i - 1]][groups[keys[i - 1]].length - 1] : groups[k][0];
+                pts.push({ ...calcDiff(cur, prev), label: k });
+            });
+        }
+
+        const maxVal = Math.max(...pts.map(d => Math.abs(d.val)), 1);
+
+        pts.forEach(d => {
+            const wrap = document.createElement('div');
+            wrap.className = 'bar-wrapper';
+            const hPct = maxVal === 0 ? 0 : (Math.abs(d.val) / maxVal) * 48;
+            const h = Math.max(hPct, 3);
+            const isP = d.val >= 0;
+
+            wrap.innerHTML = `
+                <div class="bar-val" style="${isP ? 'bottom' : 'top'}:calc(50% ${isP ? '+' : '-'} ${h + 5}%); color:${isP ? 'var(--primary)' : 'var(--danger)'}">${d.pc}%</div>
+                <div class="bar" style="height:${h}%; ${isP ? 'bottom:50%' : 'top:50%'}; background:${isP ? 'var(--primary)' : 'var(--danger)'}; border-radius:${isP ? '4px 4px 0 0' : '0 0 4px 4px'}"></div>
+                <div class="bar-date">${escapeHtml(d.label || d.date)}</div>
+            `;
+            chart.appendChild(wrap);
+            info.innerHTML += `<div class="log-item"><span>${escapeHtml(d.label || d.date)}</span><span dir="ltr" style="color:${isP ? 'var(--primary)' : 'var(--danger)'}">${isP ? '+' : ''}${Number(d.val).toLocaleString('fa-IR')}</span></div>`;
+        });
+    }
+    function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    function calcDiff(curr, prev) {
+        const diff = curr.total - prev.total;
+        const pc = prev.total !== 0 ? ((diff / prev.total) * 100).toFixed(1) : 0;
+        return { val: diff, pc: pc, date: curr.date };
+    }
+
+    function switchChartType(type, el) {
+        chartType = type;
+        document.querySelectorAll('.chart-tabs .tab').forEach(t => t.classList.remove('active'));
+        if (el) el.classList.add('active');
+        document.getElementById('main-chart').style.display = chartType === 'bar' ? 'flex' : 'none';
+        document.getElementById('line-chart-wrap').style.display = chartType === 'line' ? 'block' : 'none';
+        if (chartType === 'line') renderLineChart();
+        else renderChart();
+    }
+    function renderLineChart() {
+        const wrap = document.getElementById('line-chart-wrap');
+        const svg = document.getElementById('line-chart-svg');
+        if (!svg || db.assets.length < 2) return;
+        const pts = db.assets.slice(-20).map(a => a.total);
+        const min = Math.min(...pts), max = Math.max(...pts), range = max - min || 1;
+        const w = 400, h = 160, pad = 20;
+        const x = (i) => pad + (i / (pts.length - 1)) * (w - 2 * pad);
+        const y = (v) => h - pad - ((v - min) / range) * (h - 2 * pad);
+        let d = 'M ' + x(0) + ' ' + y(pts[0]);
+        for (let i = 1; i < pts.length; i++) d += ' L ' + x(i) + ' ' + y(pts[i]);
+        svg.innerHTML = '<path class="line-chart-path" d="' + d + '" stroke-dasharray="' + (w + h) + '" stroke-dashoffset="0"/>';
+    }
+
+    function changeTF(tf, el) {
+        currentTF = tf;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        render();
+    }
+
+    function editEntry(idx) {
+        const a = db.assets[idx];
+        document.getElementById('in-date').value = a.date;
+        document.getElementById('in-total').value = a.total;
+        document.getElementById('in-idle').value = a.idle;
+        nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
+    }
+
+    function requestNotificationPermission() {
+        if (!('Notification' in window)) { alert('مرورگر شما اعلان پشتیبانی نمی‌کند.'); return; }
+        if (Notification.permission === 'granted') { alert('یادآور بکاپ از قبل فعال است.'); return; }
+        Notification.requestPermission().then(function(p) {
+            if (p === 'granted') {
+                document.getElementById('notif-btn').textContent = '✓ یادآور فعال';
+                localStorage.setItem(DB_KEY + '_notif', '1');
+                try { new Notification('پورتفوی حامی', { body: 'یادآور بکاپ فعال شد. هر هفته به شما یادآوری می‌شود.' }); } catch (e) {}
+            }
+        });
+    }
+    function maybeNotifyBackup() {
+        if (!localStorage.getItem(DB_KEY + '_notif') || Notification.permission !== 'granted') return;
+        const last = db.lastBackup ? new Date(db.lastBackup) : null;
+        const days = last ? Math.floor((new Date() - last) / 86400000) : 999;
+        if (days >= 7 && db.assets.length > 0) {
+            try { new Notification('پورتفوی حامی', { body: 'یک هفته از آخرین بکاپ گذشته. برای امنیت داده‌ها پشتیبان بگیرید.' }); } catch (e) {}
+        }
+    }
+
+    // Init
+    applyTheme();
+    document.getElementById('cfg-rate').value = db.config.rate;
+    document.getElementById('cfg-payday').value = db.config.payday;
+    document.getElementById('cfg-type').value = db.config.type;
+    document.getElementById('currency-unit').value = currencyUnit;
+    if (Notification.permission === 'granted') document.getElementById('notif-btn').textContent = '✓ یادآور فعال';
+    maybeNotifyBackup();
+    render();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function() {});
+</script>
+</body>
+</html>
