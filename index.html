@@ -185,8 +185,15 @@
             <p id="in-date-err" class="field-err"></p>
             <input type="number" id="in-total" placeholder="دارایی کل" aria-label="دارایی کل" min="0" oninput="validateNumberLive(this, 0)">
             <input type="number" id="in-idle" placeholder="مبلغ در طرح حامی" aria-label="مبلغ حامی" min="0">
-            <input type="number" id="in-flow" placeholder="جریان مالی (واریز + یا برداشت -)" aria-label="واریز یا برداشت">
-            <p style="font-size:10px; color:var(--muted); margin:-4px 0 8px 0;">ℹ️ <strong>واریز</strong>: +، <strong>برداشت</strong>: -</p>
+            <div style="display:flex; gap:8px; margin:8px 0;">
+                <select id="in-flow-type" style="flex:0 0 auto; width:auto; padding:12px 8px;">
+                    <option value="none">بدون واریز/برداشت</option>
+                    <option value="deposit">واریز ➕</option>
+                    <option value="withdraw">برداشت ➖</option>
+                </select>
+                <input type="number" id="in-flow-amount" placeholder="مبلغ" aria-label="مبلغ جریان مالی" min="0" style="flex:1;">
+            </div>
+            <p style="font-size:10px; color:var(--muted); margin:-4px 0 8px 0;">ℹ️ برای هر واریز یا برداشت، نوع و مبلغ را وارد کنید</p>
             <p style="font-size:11px; color:var(--muted)">واحد نمایش: <select id="currency-unit" onchange="saveCurrencyAndRender()" style="width:auto; display:inline-block; padding:4px 8px;">
                 <option value="rial">ریال</option>
                 <option value="toman">تومان</option>
@@ -262,7 +269,7 @@
 
 <nav>
     <div class="nav-item on" onclick="nav('pg-dash', this)">📊</div>
-    <div class="nav-item" onclick="nav('pg-entry', this)">📝</div>
+    <div class="nav-item" onclick="newEntry()">📝</div>
     <div class="nav-item" onclick="nav('pg-config', this)">⚙️</div>
 </nav>
 
@@ -382,7 +389,6 @@
         document.getElementById(id).classList.add('active');
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('on'));
         el.classList.add('on');
-        if (id === 'pg-entry') clearEntryForm();
         render();
     }
 
@@ -391,14 +397,26 @@
         document.getElementById('in-date').value = '';
         document.getElementById('in-total').value = '';
         document.getElementById('in-idle').value = '';
-        document.getElementById('in-flow').value = '';
+        document.getElementById('in-flow-type').value = 'none';
+        document.getElementById('in-flow-amount').value = '';
+    }
+    
+    function newEntry() {
+        clearEntryForm();
+        nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
     }
 
     function addEntry() {
         const d = document.getElementById('in-date').value.trim();
         const t = +document.getElementById('in-total').value;
         const i = +document.getElementById('in-idle').value || 0;
-        const f = +document.getElementById('in-flow').value || 0;
+        const flowType = document.getElementById('in-flow-type').value;
+        const flowAmount = +document.getElementById('in-flow-amount').value || 0;
+        
+        let f = 0;
+        if (flowType === 'deposit') f = flowAmount;
+        else if (flowType === 'withdraw') f = -flowAmount;
+        
         if (!d || !t) return alert("لطفاً تاریخ و مبلغ کل را وارد کنید.");
         if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(d)) return alert("فرمت تاریخ باید شمسی باشد، مثلاً 1404/11/09");
         if (db.assets.length >= MAX_RECORDS) {
@@ -598,7 +616,85 @@
     }
 
     // Rendering Logic
-    function render() {
+    function nextJalaliDay(y, m, d) {
+        const monthDays = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+        const jalaliLeap = ((((y - 474) % 2820) + 474) % 4) === 1;
+        if (jalaliLeap) monthDays[11] = 30;
+        const daysInMonth = m <= 6 ? 31 : (m === 12 && jalaliLeap ? 30 : 29);
+        
+        if (d < daysInMonth) {
+            return [y, m, d + 1];
+        } else if (m < 12) {
+            return [y, m + 1, 1];
+        } else {
+            return [y + 1, 1, 1];
+        }
+    }
+
+    function calculateFormattedDate(y, m, d) {
+        return String(y).padStart(4, '0') + '/' + String(m).padStart(2, '0') + '/' + String(d).padStart(2, '0');
+    }
+
+    function calculateCorrectSood() {
+        if (db.assets.length === 0) return 0;
+        
+        const dailyRate = (db.config.rate / 100) / parseInt(db.config.type);
+        let totalSood = 0;
+        
+        // Get start date from first asset
+        const [startY, startM, startD] = db.assets[0].date.split('/').map(Number);
+        
+        // Get end date: last asset date or today (whichever is later)
+        const lastAssetDate = db.assets[db.assets.length - 1].date;
+        const [lastY, lastM, lastD] = lastAssetDate.split('/').map(Number);
+        
+        const now = new Date();
+        const [todayY, todayM, todayD] = gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        
+        // Choose the later date
+        let endY = todayY, endM = todayM, endD = todayD;
+        const lastDateStr = calculateFormattedDate(lastY, lastM, lastD);
+        const todayStr = calculateFormattedDate(todayY, todayM, todayD);
+        if (lastDateStr > todayStr) {
+            endY = lastY;
+            endM = lastM;
+            endD = lastD;
+        }
+        
+        // Create map of date → idle for fast lookup
+        const idleMap = {};
+        db.assets.forEach(asset => {
+            idleMap[asset.date] = asset.idle || 0;
+        });
+        
+        // Iterate through each day
+        let currentY = startY, currentM = startM, currentD = startD;
+        let lastKnownIdle = db.assets[0].idle || 0;
+        
+        while (true) {
+            const dateStr = calculateFormattedDate(currentY, currentM, currentD);
+            
+            // Update idle if we have data for this date
+            if (idleMap[dateStr] !== undefined) {
+                lastKnownIdle = idleMap[dateStr];
+            }
+            
+            // Add daily sood
+            totalSood += lastKnownIdle * dailyRate;
+            
+            // Check if we've reached the end date
+            if (currentY === endY && currentM === endM && currentD === endD) {
+                break;
+            }
+            
+            // Move to next day
+            [currentY, currentM, currentD] = nextJalaliDay(currentY, currentM, currentD);
+        }
+        
+        return totalSood;
+    }
+
+    
         const lastB = db.lastBackup ? new Date(db.lastBackup) : null;
         const diffDays = lastB ? Math.floor((new Date() - lastB) / 86400000) : 999;
         document.getElementById('backup-alert').style.display = (diffDays > 3 && db.assets.length > 0) ? 'block' : 'none';
@@ -626,9 +722,7 @@
             });
         }
 
-        let hamiSoodTotal = 0;
-        const dailyRate = (db.config.rate / 100) / parseInt(db.config.type);
-        db.assets.forEach(a => { hamiSoodTotal += (a.idle * dailyRate); });
+        let hamiSoodTotal = calculateCorrectSood();
 
         if (db.assets.length > 0) {
             document.getElementById('total-val').innerText = formatMoney(db.assets[db.assets.length - 1].total);
@@ -782,7 +876,19 @@
         document.getElementById('in-date').value = a.date;
         document.getElementById('in-total').value = a.total;
         document.getElementById('in-idle').value = a.idle;
-        document.getElementById('in-flow').value = a.flow || 0;
+        
+        const flow = a.flow || 0;
+        if (flow > 0) {
+            document.getElementById('in-flow-type').value = 'deposit';
+            document.getElementById('in-flow-amount').value = flow;
+        } else if (flow < 0) {
+            document.getElementById('in-flow-type').value = 'withdraw';
+            document.getElementById('in-flow-amount').value = -flow;
+        } else {
+            document.getElementById('in-flow-type').value = 'none';
+            document.getElementById('in-flow-amount').value = '';
+        }
+        
         nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
     }
 
