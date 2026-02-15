@@ -185,6 +185,8 @@
             <p id="in-date-err" class="field-err"></p>
             <input type="number" id="in-total" placeholder="دارایی کل" aria-label="دارایی کل" min="0" oninput="validateNumberLive(this, 0)">
             <input type="number" id="in-idle" placeholder="مبلغ در طرح حامی" aria-label="مبلغ حامی" min="0">
+            <input type="number" id="in-flow" placeholder="جریان مالی (واریز + یا برداشت -)" aria-label="واریز یا برداشت">
+            <p style="font-size:10px; color:var(--muted); margin:-4px 0 8px 0;">ℹ️ <strong>واریز</strong>: +، <strong>برداشت</strong>: -</p>
             <p style="font-size:11px; color:var(--muted)">واحد نمایش: <select id="currency-unit" onchange="saveCurrencyAndRender()" style="width:auto; display:inline-block; padding:4px 8px;">
                 <option value="rial">ریال</option>
                 <option value="toman">تومان</option>
@@ -201,7 +203,7 @@
             </div>
             <div style="overflow-x:auto;">
                 <table id="data-table">
-                    <thead><tr><th>تاریخ</th><th>کل</th><th>حامی</th><th>عملیات</th></tr></thead>
+                    <thead><tr><th>تاریخ</th><th>کل</th><th>حامی</th><th>جریان</th><th>عملیات</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -380,14 +382,23 @@
         document.getElementById(id).classList.add('active');
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('on'));
         el.classList.add('on');
+        if (id === 'pg-entry') clearEntryForm();
         render();
     }
 
     // Core Functions
+    function clearEntryForm() {
+        document.getElementById('in-date').value = '';
+        document.getElementById('in-total').value = '';
+        document.getElementById('in-idle').value = '';
+        document.getElementById('in-flow').value = '';
+    }
+
     function addEntry() {
         const d = document.getElementById('in-date').value.trim();
         const t = +document.getElementById('in-total').value;
         const i = +document.getElementById('in-idle').value || 0;
+        const f = +document.getElementById('in-flow').value || 0;
         if (!d || !t) return alert("لطفاً تاریخ و مبلغ کل را وارد کنید.");
         if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(d)) return alert("فرمت تاریخ باید شمسی باشد، مثلاً 1404/11/09");
         if (db.assets.length >= MAX_RECORDS) {
@@ -395,10 +406,11 @@
             if (idx === -1) { alert('حداکثر ' + MAX_RECORDS + ' رکورد. قدیمی‌ترین را حذف یا بکاپ بگیرید.'); return; }
         }
         const idx = db.assets.findIndex(a => a.date === d);
-        if (idx > -1) db.assets[idx] = { date: d, total: t, idle: i };
-        else db.assets.push({ date: d, total: t, idle: i });
+        if (idx > -1) db.assets[idx] = { date: d, total: t, idle: i, flow: f };
+        else db.assets.push({ date: d, total: t, idle: i, flow: f });
         db.assets.sort((a, b) => a.date.localeCompare(b.date));
         saveAndReload();
+        clearEntryForm();
     }
     function saveCurrencyAndRender() {
         currencyUnit = document.getElementById('currency-unit').value;
@@ -515,6 +527,9 @@
 
     function saveAndReload() {
         db.version = DB_VERSION;
+        db.assets.forEach(a => {
+            if (a.flow === undefined) a.flow = 0;
+        });
         localStorage.setItem(DB_KEY, JSON.stringify(db));
         render();
     }
@@ -576,7 +591,7 @@
         tbody.innerHTML = '';
         list.forEach((a, ii) => {
             const i = db.assets.findIndex(x => x === a);
-            tbody.innerHTML += `<tr><td>${escapeHtml(a.date)}</td><td>${formatMoney(a.total)}</td><td>${formatMoney(a.idle)}</td>
+            tbody.innerHTML += `<tr><td>${escapeHtml(a.date)}</td><td>${formatMoney(a.total)}</td><td>${formatMoney(a.idle)}</td><td>${formatMoney(a.flow || 0)}</td>
             <td><button style="width:auto;padding:4px 8px;background:#eab308;color:black;border-radius:6px" onclick="editEntry(${i})">✎</button>
             <button style="width:auto;padding:4px 8px;background:red;color:white;border-radius:6px" onclick="openDeleteModal(${i})">✕</button></td></tr>`;
         });
@@ -605,7 +620,7 @@
             tbody.innerHTML = "";
             filtered.forEach(a => {
                 const i = db.assets.findIndex(x => x.date === a.date && x.total === a.total);
-                tbody.innerHTML += `<tr><td>${escapeHtml(a.date)}</td><td>${formatMoney(a.total)}</td><td>${formatMoney(a.idle)}</td>
+                tbody.innerHTML += `<tr><td>${escapeHtml(a.date)}</td><td>${formatMoney(a.total)}</td><td>${formatMoney(a.idle)}</td><td>${formatMoney(a.flow || 0)}</td>
                 <td><button style="width:auto;padding:4px 8px;background:#eab308;color:black;border-radius:6px" onclick="editEntry(${i})">✎</button>
                 <button style="width:auto;padding:4px 8px;background:red;color:white;border-radius:6px" onclick="openDeleteModal(${i})">✕</button></td></tr>`;
             });
@@ -726,8 +741,10 @@
 
     function calcDiff(curr, prev) {
         const diff = curr.total - prev.total;
-        const pc = prev.total !== 0 ? ((diff / prev.total) * 100).toFixed(1) : 0;
-        return { val: diff, pc: pc, date: curr.date };
+        const flow = curr.flow || 0;
+        const realDiff = diff - flow;
+        const pc = prev.total !== 0 ? ((realDiff / prev.total) * 100).toFixed(1) : 0;
+        return { val: realDiff, pc: pc, date: curr.date };
     }
 
     function switchChartType(type, el) {
@@ -765,6 +782,7 @@
         document.getElementById('in-date').value = a.date;
         document.getElementById('in-total').value = a.total;
         document.getElementById('in-idle').value = a.idle;
+        document.getElementById('in-flow').value = a.flow || 0;
         nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
     }
 
