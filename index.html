@@ -717,7 +717,7 @@
         return totalSood;
     }
 
-    
+    function render() {
         const lastB = db.lastBackup ? new Date(db.lastBackup) : null;
         const diffDays = lastB ? Math.floor((new Date() - lastB) / 86400000) : 999;
         document.getElementById('backup-alert').style.display = (diffDays > 3 && db.assets.length > 0) ? 'block' : 'none';
@@ -933,6 +933,8 @@
             document.getElementById('daily-sood-info').style.display = 'none';
         }
     }
+
+    function editEntry(idx) {
         const a = db.assets[idx];
         document.getElementById('in-date').value = a.date;
         document.getElementById('in-total').value = a.total;
@@ -949,7 +951,9 @@
             document.getElementById('in-flow-type').value = 'none';
             document.getElementById('in-flow-amount').value = '';
         }
-                updateDailySoodInfo();        nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
+        
+        updateDailySoodInfo();
+        nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
     }
 
     function requestNotificationPermission() {
