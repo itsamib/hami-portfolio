@@ -150,6 +150,22 @@
                 <div id="hami-rem" class="reminder-tag"></div>
             </div>
         </div>
+        <div id="daily-rate-card" class="card" style="display:none; padding:12px; background:var(--card-hover); border:1px solid var(--border); margin-bottom:15px;">
+            <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">📅 سود روزانه</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <div style="font-size:10px; color:var(--muted);">درصد روزانه</div>
+                    <div id="daily-percent-display" style="font-weight:bold; font-size:1rem; color:var(--primary);">۰%</div>
+                </div>
+                <div>
+                    <div style="font-size:10px; color:var(--muted);">مقدار روزانه</div>
+                    <div id="daily-amount-dash" class="priv-blur" style="font-weight:bold; font-size:1rem;">۰</div>
+                </div>
+            </div>
+            <div style="font-size:10px; color:var(--muted); margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
+                نوع محاسبه: <span id="calc-type-display" style="color:var(--primary); font-weight:bold;">سالانه</span>
+            </div>
+        </div>
         <div id="summary-row" class="summary-row"></div>
 
         <div class="tabs">
@@ -177,6 +193,10 @@
     <div id="pg-entry" class="page">
         <div class="card">
             <h3 style="margin-top:0">📝 ثبت وضعیت جدید</h3>
+            <div id="daily-sood-info" style="background:var(--card-hover); padding:10px; border-radius:8px; margin-bottom:12px; font-size:11px; color:var(--muted); display:none;">
+                <div>💡 سود روزانه:  <strong id="daily-rate-display">0</strong> %</div>
+                <div id="daily-amount-display"></div>
+            </div>
             <div class="date-row">
                 <input type="text" id="in-date" placeholder="تاریخ شمسی (۱۴۰۴/۱۱/۰۹)" aria-label="تاریخ شمسی" oninput="validateDateLive(this)">
                 <input type="date" id="in-date-picker" title="انتخاب تاریخ میلادی" aria-label="انتخاب تاریخ" onchange="onDatePickerChange()">
@@ -184,7 +204,7 @@
             </div>
             <p id="in-date-err" class="field-err"></p>
             <input type="number" id="in-total" placeholder="دارایی کل" aria-label="دارایی کل" min="0" oninput="validateNumberLive(this, 0)">
-            <input type="number" id="in-idle" placeholder="مبلغ در طرح حامی" aria-label="مبلغ حامی" min="0">
+            <input type="number" id="in-idle" placeholder="مبلغ در طرح حامی" aria-label="مبلغ حامی" min="0" oninput="updateDailySoodInfo()">
             <div style="display:flex; gap:8px; margin:8px 0;">
                 <select id="in-flow-type" style="flex:0 0 auto; width:auto; padding:12px 8px;">
                     <option value="none">بدون واریز/برداشت</option>
@@ -223,12 +243,13 @@
             <p id="cfg-err" class="cfg-err"></p>
             <input type="number" id="cfg-payday" placeholder="روز واریز سود (۱ تا ۳۱)" min="1" max="31" aria-label="روز واریز" oninput="validatePaydayLive(this)">
             <p id="cfg-payday-err" class="field-err"></p>
-            <input type="number" id="cfg-rate" placeholder="نرخ سود سالانه (٪)" min="0" max="100" step="0.1" aria-label="نرخ سود" oninput="validateRateLive(this)">
+            <input type="number" id="cfg-rate" placeholder="نرخ سود (٪)" min="0" max="100" step="0.1" aria-label="نرخ سود" oninput="validateRateLive(this)">
             <p id="cfg-rate-err" class="field-err"></p>
-            <select id="cfg-type" aria-label="نوع محاسبه">
-                <option value="365">محاسبه سالانه</option>
-                <option value="30">محاسبه ماهانه</option>
+            <select id="cfg-type" aria-label="نوع محاسبه" onchange="render()">
+                <option value="365">📅 سالانه (365 روز)</option>
+                <option value="30">📆 ماهانه (30 روز)</option>
             </select>
+            <p style="font-size:10px; color:var(--muted); margin:8px 0 12px 0;">💡 درصد سود بر اساس نوع محاسبه تقسیم می‌شود:<br>• سالانه: درصد ÷ 365<br>• ماهانه: درصد ÷ 30</p>
             <button onclick="saveCfg()">بروزرسانی تنظیمات</button>
         </div>
 
@@ -399,10 +420,12 @@
         document.getElementById('in-idle').value = '';
         document.getElementById('in-flow-type').value = 'none';
         document.getElementById('in-flow-amount').value = '';
+        document.getElementById('daily-sood-info').style.display = 'none';
     }
     
     function newEntry() {
         clearEntryForm();
+        updateDailySoodInfo();
         nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
     }
 
@@ -733,12 +756,31 @@
             if (daysLeft < 0) daysLeft += 30;
             document.getElementById('hami-rem').innerText = daysLeft === 0 ? "امروز: روز واریز سود" : daysLeft + " روز تا سود حامی";
 
+            // Calculate and display daily sood
+            const totalIdle = db.assets.reduce((sum, a) => sum + (a.idle || 0), 0);
+            if (totalIdle > 0) {
+                const dailyRate = (db.config.rate / 100) / parseInt(db.config.type);
+                const dailyPercent = (dailyRate * 100).toFixed(4);
+                const dailyAmount = totalIdle * dailyRate;
+                const calcTypeText = db.config.type === "365" ? "سالانه" : "ماهانه";
+                
+                document.getElementById('daily-percent-display').innerText = dailyPercent + '%';
+                document.getElementById('daily-amount-dash').innerText = formatMoney(dailyAmount);
+                document.getElementById('calc-type-display').innerText = calcTypeText;
+                document.getElementById('daily-rate-card').style.display = 'block';
+            } else {
+                document.getElementById('daily-rate-card').style.display = 'none';
+            }
+
             const totals = db.assets.map(a => a.total);
             const minT = Math.min(...totals), maxT = Math.max(...totals), avgT = totals.reduce((s, x) => s + x, 0) / totals.length;
             const first = db.assets[0].total, last = db.assets[db.assets.length - 1].total;
             const growthPc = first ? (((last - first) / first) * 100).toFixed(1) : '۰';
             document.getElementById('summary-row').innerHTML = '<span>کمترین: ' + formatMoney(minT) + '</span><span>بیشترین: ' + formatMoney(maxT) + '</span><span>میانگین: ' + formatMoney(avgT) + '</span><span>رشد دوره: ' + growthPc + '%</span>';
-        } else document.getElementById('summary-row').innerHTML = '';
+        } else {
+            document.getElementById('daily-rate-card').style.display = 'none';
+            document.getElementById('summary-row').innerHTML = '';
+        }
 
         renderChart();
         if (chartType === 'line') renderLineChart();
@@ -871,7 +913,26 @@
         render();
     }
 
-    function editEntry(idx) {
+    function updateDailySoodInfo() {
+        const idleInput = document.getElementById('in-idle');
+        const idleValue = +idleInput.value || 0;
+        
+        if (idleValue > 0) {
+            const infoDiv = document.getElementById('daily-sood-info');
+            const rateDisplay = document.getElementById('daily-rate-display');
+            const amountDisplay = document.getElementById('daily-amount-display');
+            
+            const dailyRate = (db.config.rate / 100) / parseInt(db.config.type);
+            const dailyPercent = (dailyRate * 100).toFixed(4);
+            const dailyAmount = idleValue * dailyRate;
+            
+            rateDisplay.textContent = dailyPercent;
+            amountDisplay.innerHTML = `برای <strong>${formatMoney(idleValue)}</strong>، روزانه <strong dir="ltr">${formatMoney(dailyAmount)}</strong> سود تعلق می‌گیرد`;
+            infoDiv.style.display = 'block';
+        } else {
+            document.getElementById('daily-sood-info').style.display = 'none';
+        }
+    }
         const a = db.assets[idx];
         document.getElementById('in-date').value = a.date;
         document.getElementById('in-total').value = a.total;
@@ -888,8 +949,7 @@
             document.getElementById('in-flow-type').value = 'none';
             document.getElementById('in-flow-amount').value = '';
         }
-        
-        nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
+                updateDailySoodInfo();        nav('pg-entry', document.querySelectorAll('.nav-item')[1]);
     }
 
     function requestNotificationPermission() {
